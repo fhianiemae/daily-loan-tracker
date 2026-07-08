@@ -22,6 +22,7 @@ import {
   remainingPayable,
   computeOverduePenalty,
   computeRenewal,
+  computeLoan,
   todayStr,
   showError,
 } from "./utils.js";
@@ -199,9 +200,14 @@ function renderLedger(client, payments) {
 function renderActions(remaining) {
   const canManage = client.status === "active";
   if (canManage && remaining <= 0) {
+    // Fully paid off: the lender decides whether the client wants another
+    // cycle (Renew) or is done (Delete) - the system can't infer intent
+    // from the balance alone, so offer both.
     deleteBtn.hidden = false;
-    renewBtn.hidden = true;
+    renewBtn.hidden = false;
   } else if (canManage) {
+    // Still owes money: can't archive a client who hasn't paid, but they
+    // can still renew (rolling the remaining balance into a new cycle).
     renewBtn.hidden = false;
     deleteBtn.hidden = true;
   } else {
@@ -210,13 +216,28 @@ function renderActions(remaining) {
   }
 }
 
+const renewAutoSection = document.getElementById("renewAutoSection");
+const renewManualSection = document.getElementById("renewManualSection");
+
 renewBtn.addEventListener("click", () => {
   const remaining = remainingPayable(client, payments);
-  const renewal = computeRenewal(remaining);
-  document.getElementById("renewPrincipal").textContent = formatMoney(renewal.principal);
-  document.getElementById("renewInterest").textContent = formatMoney(renewal.interest);
-  document.getElementById("renewDueDate").textContent = formatDate(renewal.dueDate);
   showError(renewError, "");
+
+  if (remaining > 0) {
+    const renewal = computeRenewal(remaining);
+    document.getElementById("renewPrincipal").textContent = formatMoney(renewal.principal);
+    document.getElementById("renewInterest").textContent = formatMoney(renewal.interest);
+    document.getElementById("renewDueDate").textContent = formatDate(renewal.dueDate);
+    renewAutoSection.hidden = false;
+    renewManualSection.hidden = true;
+  } else {
+    document.getElementById("renewPrincipalInput").value = "";
+    document.getElementById("renewInterestInput").value = "";
+    document.getElementById("renewStartDateInput").valueAsDate = new Date();
+    renewAutoSection.hidden = true;
+    renewManualSection.hidden = false;
+  }
+
   renewCard.hidden = false;
 });
 
@@ -226,10 +247,26 @@ document.getElementById("cancelRenewBtn").addEventListener("click", () => {
 
 document.getElementById("confirmRenewBtn").addEventListener("click", async (e) => {
   const btn = e.currentTarget;
+  showError(renewError, "");
+
+  const remaining = remainingPayable(client, payments);
+  let renewal;
+  if (remaining > 0) {
+    renewal = computeRenewal(remaining);
+  } else {
+    const principal = Number(document.getElementById("renewPrincipalInput").value);
+    const interest = Number(document.getElementById("renewInterestInput").value);
+    const startDate = document.getElementById("renewStartDateInput").value;
+    if (principal <= 0 || interest < 0 || !startDate) {
+      showError(renewError, "Please fill in every field with valid values.");
+      return;
+    }
+    const { totalPayable, dailyDue, dueDate } = computeLoan({ principal, interest, startDate });
+    renewal = { principal, interest, totalPayable, dailyDue, startDate, dueDate };
+  }
+
   btn.disabled = true;
   try {
-    const remaining = remainingPayable(client, payments);
-    const renewal = computeRenewal(remaining);
     const previousCycles = [
       ...(client.previousCycles || []),
       {

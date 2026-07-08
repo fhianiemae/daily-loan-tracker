@@ -49,21 +49,41 @@
 
       <div class="card" id="renewCard" hidden>
         <h3 style="margin-top:0;">Renew This Loan</h3>
-        <p class="muted">The remaining balance below becomes the new principal, plus a fresh 20% interest charge, over a new 30-day cycle starting today.</p>
-        <div class="loan-summary" style="margin-bottom:18px;">
-          <div class="stat">
-            <div class="label">New Principal</div>
-            <div class="value" id="renewPrincipal"></div>
-          </div>
-          <div class="stat">
-            <div class="label">New Interest (20%)</div>
-            <div class="value" id="renewInterest"></div>
-          </div>
-          <div class="stat">
-            <div class="label">New Due Date</div>
-            <div class="value" id="renewDueDate"></div>
+
+        <div id="renewAutoSection">
+          <p class="muted">The remaining balance below becomes the new principal, plus a fresh 20% interest charge, over a new 30-day cycle starting today.</p>
+          <div class="loan-summary" style="margin-bottom:18px;">
+            <div class="stat">
+              <div class="label">New Principal</div>
+              <div class="value" id="renewPrincipal"></div>
+            </div>
+            <div class="stat">
+              <div class="label">New Interest (20%)</div>
+              <div class="value" id="renewInterest"></div>
+            </div>
+            <div class="stat">
+              <div class="label">New Due Date</div>
+              <div class="value" id="renewDueDate"></div>
+            </div>
           </div>
         </div>
+
+        <div id="renewManualSection" class="stack" hidden style="max-width:360px; margin-bottom:18px;">
+          <p class="muted">This client is already paid off, so there's no balance to roll over &mdash; enter the terms for their new loan.</p>
+          <div class="field">
+            <label for="renewPrincipalInput">New Principal</label>
+            <input type="number" id="renewPrincipalInput" min="0" step="0.01" />
+          </div>
+          <div class="field">
+            <label for="renewInterestInput">New Interest Amount</label>
+            <input type="number" id="renewInterestInput" min="0" step="0.01" />
+          </div>
+          <div class="field">
+            <label for="renewStartDateInput">Start Date</label>
+            <input type="date" id="renewStartDateInput" />
+          </div>
+        </div>
+
         <p class="error" id="renewError" hidden></p>
         <div class="row-actions">
           <button type="button" id="confirmRenewBtn">Confirm Renewal</button>
