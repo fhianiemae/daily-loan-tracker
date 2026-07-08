@@ -33,7 +33,10 @@ export function todayStr() {
 }
 
 export function formatMoney(n) {
-  return `₱${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Plain "PHP" instead of the ₱ glyph: in bold/heavy fonts the Peso sign's
+  // bar can visually stretch across the whole number, reading like a
+  // strikethrough on the amount.
+  return `PHP ${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 // Interest is stored as a flat amount, but the UI shows it as a rate relative
