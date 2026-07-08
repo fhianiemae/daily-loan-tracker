@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Client Login - Daily Payment Loan Tracker</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <div class="page">
+    <div class="center" style="margin-top:40px;">
+      <h1>Client Access</h1>
+      <p class="muted">Activate your account with the code from your lender, or log in.</p>
+    </div>
+
+    <div class="card" style="max-width:420px; margin:24px auto;">
+      <div class="tabs">
+        <button type="button" id="tabLogin" class="active">Log In</button>
+        <button type="button" id="tabActivate">Activate Account</button>
+      </div>
+
+      <p class="error" id="formError" hidden></p>
+
+      <form id="loginForm" class="stack">
+        <div class="field">
+          <label for="loginUsername">Username</label>
+          <input type="text" id="loginUsername" required autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="loginPin">4-Digit PIN</label>
+          <input type="password" id="loginPin" required inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="current-password" />
+        </div>
+        <button type="submit">Log In</button>
+      </form>
+
+      <form id="activateForm" class="stack" hidden>
+        <div class="field">
+          <label for="activateCode">Activation Code</label>
+          <input type="text" id="activateCode" required style="text-transform:uppercase;" />
+        </div>
+        <div class="field">
+          <label for="newUsername">Choose a Username</label>
+          <input type="text" id="newUsername" required autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="newPin">Choose a 4-Digit PIN</label>
+          <input type="password" id="newPin" required inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" />
+        </div>
+        <button type="submit">Activate Account</button>
+      </form>
+    </div>
+
+    <p class="center muted"><a href="../index.html">&larr; Back to start</a></p>
+  </div>
+
+  <script type="module" src="../assets/js/client-login.js"></script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Client - Daily Payment Loan Tracker</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Daily Payment Loan Tracker</h1>
+    <div class="row-actions">
+      <a href="dashboard.html" class="btn secondary">Dashboard</a>
+      <button id="logoutBtn" type="button" class="secondary">Log Out</button>
+    </div>
+  </header>
+
+  <div class="page">
+    <h2>Register New Client</h2>
+
+    <div class="card" id="formCard" style="max-width:480px;">
+      <p class="error" id="formError" hidden></p>
+      <form id="registerForm" class="stack">
+        <div class="field">
+          <label for="name">Client Name</label>
+          <input type="text" id="name" required />
+        </div>
+        <div class="field">
+          <label for="principal">Principal Amount</label>
+          <input type="number" id="principal" min="0" step="0.01" required />
+        </div>
+        <div class="field">
+          <label for="interest">Interest Amount</label>
+          <input type="number" id="interest" min="0" step="0.01" required />
+        </div>
+        <div class="field">
+          <label for="startDate">Loan Start Date</label>
+          <input type="date" id="startDate" required />
+        </div>
+        <button type="submit">Register Client</button>
+      </form>
+    </div>
+
+    <div class="card" id="successCard" style="max-width:480px;" hidden>
+      <h3 style="margin-top:0;">Client Registered</h3>
+      <p class="muted">Give this activation code to <strong id="clientNameOut"></strong>. They'll enter it at the client login page to set up their own username and PIN.</p>
+      <p class="center"><span class="code-display" id="codeOut"></span></p>
+      <p class="row-actions" style="justify-content:center; margin-top:18px;">
+        <a href="dashboard.html" class="btn">Go to Dashboard</a>
+        <button type="button" class="secondary" id="registerAnotherBtn">Register Another</button>
+      </p>
+    </div>
+  </div>
+
+  <script type="module" src="../assets/js/lender-register-client.js"></script>
+</body>
+</html>

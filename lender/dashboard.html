@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lender Dashboard - Daily Payment Loan Tracker</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Daily Payment Loan Tracker</h1>
+    <div class="row-actions">
+      <a href="register-client.html" class="btn">+ Register Client</a>
+      <button id="logoutBtn" type="button" class="secondary">Log Out</button>
+    </div>
+  </header>
+
+  <div class="page">
+    <h2>Your Clients</h2>
+    <p class="error" id="pageError" hidden></p>
+    <p class="muted" id="emptyState" hidden>You haven't registered any clients yet.</p>
+    <div class="card" id="listCard" hidden>
+      <ul class="client-list" id="clientList"></ul>
+    </div>
+  </div>
+
+  <script type="module" src="../assets/js/lender-dashboard.js"></script>
+</body>
+</html>

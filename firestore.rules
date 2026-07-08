@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function clientDoc(clientId) {
+      return get(/databases/$(database)/documents/clients/$(clientId)).data;
+    }
+
+    match /lenders/{lenderId} {
+      allow read, write: if request.auth != null && request.auth.uid == lenderId;
+    }
+
+    match /clients/{clientId} {
+      // A lender can read their own clients; a linked client can read their own loan;
+      // anyone signed in can read a still-unclaimed record so they can activate it by code.
+      allow read: if request.auth != null && (
+        resource.data.lenderId == request.auth.uid ||
+        resource.data.authUid == request.auth.uid ||
+        resource.data.status == 'pending-link'
+      );
+
+      allow create: if request.auth != null &&
+        request.resource.data.lenderId == request.auth.uid &&
+        request.resource.data.status == 'pending-link' &&
+        request.resource.data.authUid == null;
+
+      // Lender can update their own client records (e.g. edits).
+      // A client account may only claim an unclaimed record once, by setting authUid to itself.
+      allow update: if request.auth != null && (
+        resource.data.lenderId == request.auth.uid ||
+        (
+          resource.data.status == 'pending-link' &&
+          resource.data.authUid == null &&
+          request.resource.data.authUid == request.auth.uid &&
+          request.resource.data.lenderId == resource.data.lenderId &&
+          request.resource.data.principal == resource.data.principal &&
+          request.resource.data.interest == resource.data.interest &&
+          request.resource.data.dueDate == resource.data.dueDate
+        )
+      );
+
+      allow delete: if request.auth != null && resource.data.lenderId == request.auth.uid;
+
+      match /payments/{paymentId} {
+        allow read: if request.auth != null && (
+          clientDoc(clientId).lenderId == request.auth.uid ||
+          clientDoc(clientId).authUid == request.auth.uid
+        );
+
+        // Only the linked client logs new payments, and always as pending.
+        allow create: if request.auth != null &&
+          clientDoc(clientId).authUid == request.auth.uid &&
+          request.resource.data.status == 'pending';
+
+        // Only the owning lender approves (flips status) a payment.
+        allow update: if request.auth != null &&
+          clientDoc(clientId).lenderId == request.auth.uid &&
+          resource.data.status == 'pending' &&
+          request.resource.data.status == 'approved';
+
+        allow delete: if false;
+      }
+    }
+  }
+}

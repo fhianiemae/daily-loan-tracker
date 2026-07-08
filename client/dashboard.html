@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Loan - Daily Payment Loan Tracker</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Daily Payment Loan Tracker</h1>
+    <button id="logoutBtn" type="button" class="secondary">Log Out</button>
+  </header>
+
+  <div class="page">
+    <p class="error" id="pageError" hidden></p>
+
+    <div id="content" hidden>
+      <p class="banner" id="reminderBanner" hidden></p>
+
+      <div class="card">
+        <div class="loan-summary">
+          <div class="stat">
+            <div class="label">Principal + Interest</div>
+            <div class="value" id="principalInterest"></div>
+          </div>
+          <div class="stat">
+            <div class="label">Total Payable</div>
+            <div class="value" id="totalPayable"></div>
+          </div>
+          <div class="stat">
+            <div class="label">Remaining Payable</div>
+            <div class="value" id="remainingPayable"></div>
+          </div>
+          <div class="stat">
+            <div class="label">Due Date</div>
+            <div class="value" id="dueDate"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:420px;">
+        <h3 style="margin-top:0;">Log a Payment</h3>
+        <p class="error" id="formError" hidden></p>
+        <form id="paymentForm" class="stack">
+          <div class="field">
+            <label for="payDate">Date</label>
+            <input type="date" id="payDate" required />
+          </div>
+          <div class="field">
+            <label for="payAmount">Amount</label>
+            <input type="number" id="payAmount" min="0" step="0.01" required />
+          </div>
+          <button type="submit">Submit Payment</button>
+        </form>
+      </div>
+
+      <h3>Payment History</h3>
+      <p class="muted" id="noPayments" hidden>No payments logged yet.</p>
+      <div class="card" id="tableCard" hidden style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Remaining Payable</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="paymentsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="../assets/js/client-dashboard.js"></script>
+</body>
+</html>
