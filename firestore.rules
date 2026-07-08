@@ -47,10 +47,13 @@ service cloud.firestore {
           clientDoc(clientId).authUid == request.auth.uid
         );
 
-        // Only the linked client logs new payments, and always as pending.
-        allow create: if request.auth != null &&
-          clientDoc(clientId).authUid == request.auth.uid &&
-          request.resource.data.status == 'pending';
+        // The linked client logs new payments, always as pending.
+        // The owning lender may instead record a payment directly as
+        // already-approved (e.g. cash collected in person).
+        allow create: if request.auth != null && (
+          (clientDoc(clientId).authUid == request.auth.uid && request.resource.data.status == 'pending') ||
+          (clientDoc(clientId).lenderId == request.auth.uid && request.resource.data.status == 'approved')
+        );
 
         // Only the owning lender approves (flips status) a payment.
         allow update: if request.auth != null &&
@@ -58,7 +61,14 @@ service cloud.firestore {
           resource.data.status == 'pending' &&
           request.resource.data.status == 'approved';
 
-        allow delete: if false;
+        // The owning lender may delete any payment (correcting a mistake, or
+        // clearing history when archiving a fully-paid client). The linked
+        // client may only delete their own payment while it's still pending
+        // (not yet approved).
+        allow delete: if request.auth != null && (
+          clientDoc(clientId).lenderId == request.auth.uid ||
+          (clientDoc(clientId).authUid == request.auth.uid && resource.data.status == 'pending')
+        );
       }
     }
   }

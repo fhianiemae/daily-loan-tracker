@@ -9,20 +9,44 @@ import {
   query,
   orderBy,
   getDocs,
+  addDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
 } from "./firebase-init.js";
-import { daysUntil, formatDate, formatMoney, showError } from "./utils.js";
+import {
+  daysUntil,
+  formatDate,
+  formatMoney,
+  interestRatePercent,
+  remainingPayable,
+  computeOverduePenalty,
+  computeRenewal,
+  todayStr,
+  showError,
+} from "./utils.js";
 
 const logoutBtn = document.getElementById("logoutBtn");
 logoutBtn.addEventListener("click", () => signOut(auth));
 
 const pageError = document.getElementById("pageError");
 const content = document.getElementById("content");
+const formError = document.getElementById("formError");
+const paymentForm = document.getElementById("paymentForm");
+const renewBtn = document.getElementById("renewBtn");
+const deleteBtn = document.getElementById("deleteBtn");
+const renewCard = document.getElementById("renewCard");
+const renewError = document.getElementById("renewError");
+
+document.getElementById("payDate").valueAsDate = new Date();
 
 const clientId = new URLSearchParams(window.location.search).get("id");
+const clientRef = doc(db, "clients", clientId);
 
 let currentUid = null;
+let client = null;
+let payments = [];
+
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     window.location.href = "login.html";
@@ -41,58 +65,81 @@ async function loadClient() {
     return;
   }
 
-  const clientRef = doc(db, "clients", clientId);
   const snap = await getDoc(clientRef);
-
   if (!snap.exists() || snap.data().lenderId !== currentUid) {
     showError(pageError, "Client not found.");
     return;
   }
+  client = snap.data();
 
-  const client = snap.data();
-  renderSummary(client);
-  await renderPayments(client);
+  const paymentsSnap = await getDocs(
+    query(collection(db, "clients", clientId, "payments"), orderBy("date", "asc"))
+  );
+  payments = paymentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  let remaining = remainingPayable(client, payments);
+  const penalizedTotal = computeOverduePenalty(client, remaining);
+  if (penalizedTotal !== null) {
+    await updateDoc(clientRef, { totalPayable: penalizedTotal, penaltyApplied: true });
+    client.totalPayable = penalizedTotal;
+    client.penaltyApplied = true;
+    remaining = remainingPayable(client, payments);
+  }
+
+  renderHero(client, remaining);
+  renderLedger(client, payments);
+  renderActions(remaining);
   content.hidden = false;
 }
 
-function renderSummary(client) {
+function renderHero(client, remaining) {
   document.getElementById("clientName").textContent = client.name;
-  document.getElementById("principalInterest").textContent =
-    `${formatMoney(client.principal)} + ${formatMoney(client.interest)}`;
-  document.getElementById("totalPayable").textContent = formatMoney(client.totalPayable);
-  document.getElementById("dueDate").textContent = formatDate(client.dueDate);
+  document.getElementById("clientSub").textContent =
+    client.status === "pending-link" ? "Awaiting activation" : `@${client.username}`;
 
-  const badge = document.getElementById("statusBadge");
-  if (client.status === "pending-link") {
-    badge.innerHTML = `<span class="badge awaiting">Awaiting activation</span>`;
-    return;
-  }
+  document.getElementById("principalInterest").textContent = formatMoney(client.totalPayable);
+  document.getElementById("principalBreakdown").textContent =
+    `${formatMoney(client.principal)} + ${interestRatePercent(client.principal, client.interest)}%`;
+
+  document.getElementById("dueDate").textContent = formatDate(client.dueDate);
   const diff = daysUntil(client.dueDate);
-  if (diff < 0) badge.innerHTML = `<span class="badge overdue">Overdue</span>`;
-  else if (diff <= 7) badge.innerHTML = `<span class="badge due-soon">Due in ${diff}d</span>`;
-  else badge.innerHTML = `<span class="badge on-track">On track</span>`;
+  let sub;
+  if (diff < 0) sub = `Overdue by ${Math.abs(diff)} day${Math.abs(diff) === 1 ? "" : "s"}`;
+  else if (diff === 0) sub = "Due today";
+  else sub = `${diff} days left`;
+  document.getElementById("dueDateSub").textContent = sub;
+
+  document.getElementById("remainingInline").textContent = formatMoney(remaining);
 }
 
-async function renderPayments(client) {
-  const q = query(collection(db, "clients", clientId, "payments"), orderBy("date", "asc"));
-  const snap = await getDocs(q);
-
+function renderLedger(client, payments) {
   const tableCard = document.getElementById("tableCard");
   const noPayments = document.getElementById("noPayments");
-  const remainingPayableEl = document.getElementById("remainingPayable");
 
-  if (snap.empty) {
+  if (payments.length === 0) {
     noPayments.hidden = false;
     tableCard.hidden = true;
-    remainingPayableEl.textContent = formatMoney(client.totalPayable);
     return;
   }
 
-  let running = client.totalPayable;
-  const rows = snap.docs.map((d) => {
-    const p = d.data();
+  const sorted = [...payments].sort(
+    (a, b) => (a.cycle ?? 0) - (b.cycle ?? 0) || a.date.localeCompare(b.date)
+  );
+
+  let runningCycle = null;
+  let running = 0;
+  const rows = sorted.map((p) => {
+    const cycle = p.cycle ?? 0;
+    if (cycle !== runningCycle) {
+      runningCycle = cycle;
+      const base =
+        cycle === (client.cycle ?? 0)
+          ? client.totalPayable
+          : client.previousCycles?.[cycle]?.totalPayable ?? client.totalPayable;
+      running = Number(base);
+    }
     if (p.status === "approved") running -= Number(p.amount);
-    return { id: d.id, ...p, remainingAfter: running };
+    return { ...p, remainingAfter: running };
   });
 
   document.getElementById("paymentsBody").innerHTML = rows
@@ -109,12 +156,12 @@ async function renderPayments(client) {
               : `<span class="badge pending">Pending</span>
                  <button type="button" class="secondary approve-btn" data-id="${p.id}" style="margin-left:8px;">Approve</button>`
           }
+          <button type="button" class="danger delete-payment-btn" data-id="${p.id}" style="margin-left:8px;">Delete</button>
         </td>
       </tr>`
     )
     .join("");
 
-  remainingPayableEl.textContent = formatMoney(running);
   tableCard.hidden = false;
   noPayments.hidden = true;
 
@@ -126,11 +173,135 @@ async function renderPayments(client) {
           status: "approved",
           approvedAt: serverTimestamp(),
         });
-        await renderPayments(client);
+        await loadClient();
       } catch (err) {
         btn.disabled = false;
         showError(pageError, "Could not approve this payment. Please try again.");
       }
     });
   });
+
+  document.querySelectorAll(".delete-payment-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!window.confirm("Delete this payment entry? This cannot be undone.")) return;
+      btn.disabled = true;
+      try {
+        await deleteDoc(doc(db, "clients", clientId, "payments", btn.dataset.id));
+        await loadClient();
+      } catch (err) {
+        btn.disabled = false;
+        showError(pageError, "Could not delete this payment. Please try again.");
+      }
+    });
+  });
 }
+
+function renderActions(remaining) {
+  const canManage = client.status === "active";
+  if (canManage && remaining <= 0) {
+    deleteBtn.hidden = false;
+    renewBtn.hidden = true;
+  } else if (canManage) {
+    renewBtn.hidden = false;
+    deleteBtn.hidden = true;
+  } else {
+    renewBtn.hidden = true;
+    deleteBtn.hidden = true;
+  }
+}
+
+renewBtn.addEventListener("click", () => {
+  const remaining = remainingPayable(client, payments);
+  const renewal = computeRenewal(remaining);
+  document.getElementById("renewPrincipal").textContent = formatMoney(renewal.principal);
+  document.getElementById("renewInterest").textContent = formatMoney(renewal.interest);
+  document.getElementById("renewDueDate").textContent = formatDate(renewal.dueDate);
+  showError(renewError, "");
+  renewCard.hidden = false;
+});
+
+document.getElementById("cancelRenewBtn").addEventListener("click", () => {
+  renewCard.hidden = true;
+});
+
+document.getElementById("confirmRenewBtn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    const remaining = remainingPayable(client, payments);
+    const renewal = computeRenewal(remaining);
+    const previousCycles = [
+      ...(client.previousCycles || []),
+      {
+        principal: client.principal,
+        interest: client.interest,
+        totalPayable: client.totalPayable,
+        startDate: client.startDate,
+        dueDate: client.dueDate,
+        renewedAt: todayStr(),
+      },
+    ];
+    await updateDoc(clientRef, {
+      principal: renewal.principal,
+      interest: renewal.interest,
+      totalPayable: renewal.totalPayable,
+      dailyDue: renewal.dailyDue,
+      startDate: renewal.startDate,
+      dueDate: renewal.dueDate,
+      cycle: (client.cycle || 0) + 1,
+      previousCycles,
+      penaltyApplied: false,
+    });
+    renewCard.hidden = true;
+    await loadClient();
+  } catch (err) {
+    btn.disabled = false;
+    showError(renewError, "Could not renew this loan. Please try again.");
+  }
+});
+
+deleteBtn.addEventListener("click", async () => {
+  if (!window.confirm(`Delete ${client.name}'s record permanently? This cannot be undone.`)) {
+    return;
+  }
+  deleteBtn.disabled = true;
+  try {
+    const paymentsSnap = await getDocs(collection(db, "clients", clientId, "payments"));
+    await Promise.all(paymentsSnap.docs.map((d) => deleteDoc(d.ref)));
+    await deleteDoc(clientRef);
+    window.location.href = "dashboard.html";
+  } catch (err) {
+    deleteBtn.disabled = false;
+    showError(pageError, "Could not delete this client. Please try again.");
+  }
+});
+
+paymentForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  showError(formError, "");
+
+  const date = document.getElementById("payDate").value;
+  const amount = Number(document.getElementById("payAmount").value);
+
+  if (!date || amount <= 0) {
+    showError(formError, "Enter a valid date and amount.");
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, "clients", clientId, "payments"), {
+      date,
+      amount,
+      status: "approved",
+      source: "lender",
+      cycle: client.cycle ?? 0,
+      createdAt: serverTimestamp(),
+      approvedAt: serverTimestamp(),
+    });
+    paymentForm.reset();
+    document.getElementById("payDate").valueAsDate = new Date();
+    await loadClient();
+  } catch (err) {
+    showError(formError, "Could not record this payment. Please try again.");
+  }
+});

@@ -4,12 +4,14 @@ import {
   onAuthStateChanged,
   signOut,
   collection,
+  doc,
   query,
   where,
   orderBy,
   getDocs,
+  updateDoc,
 } from "./firebase-init.js";
-import { daysUntil, formatDate, showError } from "./utils.js";
+import { daysUntil, formatDate, remainingPayable, computeOverduePenalty, showError } from "./utils.js";
 
 const clientList = document.getElementById("clientList");
 const listCard = document.getElementById("listCard");
@@ -40,13 +42,9 @@ function statusBadge(client) {
   return `<span class="badge on-track">On track</span>`;
 }
 
-async function pendingCount(clientId) {
-  const q = query(
-    collection(db, "clients", clientId, "payments"),
-    where("status", "==", "pending")
-  );
-  const snap = await getDocs(q);
-  return snap.size;
+async function fetchPayments(clientId) {
+  const snap = await getDocs(collection(db, "clients", clientId, "payments"));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 async function loadClients(uid) {
@@ -65,9 +63,26 @@ async function loadClients(uid) {
 
   const rows = await Promise.all(
     snap.docs.map(async (d) => {
-      const client = d.data();
-      const pending = client.status === "pending-link" ? 0 : await pendingCount(d.id);
-      return { id: d.id, client, pending };
+      const clientId = d.id;
+      let client = d.data();
+      if (client.status === "pending-link") {
+        return { id: clientId, client, pending: 0 };
+      }
+
+      const payments = await fetchPayments(clientId);
+      const pending = payments.filter((p) => p.status === "pending").length;
+
+      const remaining = remainingPayable(client, payments);
+      const penalizedTotal = computeOverduePenalty(client, remaining);
+      if (penalizedTotal !== null) {
+        await updateDoc(doc(db, "clients", clientId), {
+          totalPayable: penalizedTotal,
+          penaltyApplied: true,
+        });
+        client = { ...client, totalPayable: penalizedTotal, penaltyApplied: true };
+      }
+
+      return { id: clientId, client, pending };
     })
   );
 

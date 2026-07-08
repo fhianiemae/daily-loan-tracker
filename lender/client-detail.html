@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>Daily Payment Loan Tracker</h1>
+    <h1>30-Day Daily Payment Loans</h1>
     <div class="row-actions">
       <a href="dashboard.html" class="btn secondary">Dashboard</a>
       <button id="logoutBtn" type="button" class="secondary">Log Out</button>
@@ -19,46 +19,91 @@
     <p class="error" id="pageError" hidden></p>
 
     <div id="content" hidden>
-      <div class="center" style="margin-bottom:10px;">
-        <h2 id="clientName" style="margin-bottom:4px;"></h2>
-        <span id="statusBadge"></span>
+      <div class="row-actions" style="justify-content:space-between; margin-bottom:16px;">
+        <a href="dashboard.html" class="btn secondary">&larr; All Clients</a>
+        <div class="row-actions">
+          <button type="button" class="secondary" id="renewBtn" hidden>Renew Loan</button>
+          <button type="button" class="danger" id="deleteBtn" hidden>Delete Client</button>
+        </div>
       </div>
 
-      <div class="card">
+      <div class="card hero">
         <div class="loan-summary">
+          <div class="stat">
+            <div class="label">Client</div>
+            <div class="value" id="clientName"></div>
+            <div class="sub" id="clientSub"></div>
+          </div>
           <div class="stat">
             <div class="label">Principal + Interest</div>
             <div class="value" id="principalInterest"></div>
-          </div>
-          <div class="stat">
-            <div class="label">Total Payable</div>
-            <div class="value" id="totalPayable"></div>
-          </div>
-          <div class="stat">
-            <div class="label">Remaining Payable</div>
-            <div class="value" id="remainingPayable"></div>
+            <div class="sub" id="principalBreakdown"></div>
           </div>
           <div class="stat">
             <div class="label">Due Date</div>
             <div class="value" id="dueDate"></div>
+            <div class="sub" id="dueDateSub"></div>
           </div>
         </div>
       </div>
 
-      <h3>Payment History</h3>
-      <p class="muted" id="noPayments" hidden>No payments logged yet.</p>
-      <div class="card" id="tableCard" hidden style="overflow-x:auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Amount</th>
-              <th>Remaining Payable</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="paymentsBody"></tbody>
-        </table>
+      <div class="card" id="renewCard" hidden>
+        <h3 style="margin-top:0;">Renew This Loan</h3>
+        <p class="muted">The remaining balance below becomes the new principal, plus a fresh 20% interest charge, over a new 30-day cycle starting today.</p>
+        <div class="loan-summary" style="margin-bottom:18px;">
+          <div class="stat">
+            <div class="label">New Principal</div>
+            <div class="value" id="renewPrincipal"></div>
+          </div>
+          <div class="stat">
+            <div class="label">New Interest (20%)</div>
+            <div class="value" id="renewInterest"></div>
+          </div>
+          <div class="stat">
+            <div class="label">New Due Date</div>
+            <div class="value" id="renewDueDate"></div>
+          </div>
+        </div>
+        <p class="error" id="renewError" hidden></p>
+        <div class="row-actions">
+          <button type="button" id="confirmRenewBtn">Confirm Renewal</button>
+          <button type="button" class="secondary" id="cancelRenewBtn">Cancel</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Payment Ledger</h3>
+        <p class="muted">Remaining payable: <strong id="remainingInline"></strong></p>
+        <p class="muted" id="noPayments" hidden>No payments logged yet.</p>
+        <div id="tableCard" hidden style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Remaining Payable</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="paymentsBody"></tbody>
+          </table>
+        </div>
+
+        <hr class="divider" />
+
+        <h3>Log a Payment for This Client</h3>
+        <p class="error" id="formError" hidden></p>
+        <form id="paymentForm" class="stack" style="max-width:360px;">
+          <div class="field">
+            <label for="payDate">Date</label>
+            <input type="date" id="payDate" required />
+          </div>
+          <div class="field">
+            <label for="payAmount">Amount</label>
+            <input type="number" id="payAmount" min="0" step="0.01" required />
+          </div>
+          <button type="submit">Record as Approved</button>
+        </form>
       </div>
     </div>
   </div>

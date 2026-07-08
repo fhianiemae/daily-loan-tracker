@@ -59,6 +59,9 @@ registerForm.addEventListener("submit", async (e) => {
       status: "pending-link",
       authUid: null,
       username: null,
+      cycle: 0,
+      previousCycles: [],
+      penaltyApplied: false,
       createdAt: serverTimestamp(),
     });
 
